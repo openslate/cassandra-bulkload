@@ -7,7 +7,7 @@ Usage
 -----
 ::
 
-    groovy loader.groovy -c /path/to/config.json -o /path/to/create/output -d /path/to/datafile.csv
+    groovy load.groovy -c /path/to/config.json -o /path/to/create/output -d /path/to/datafile.csv
 
 -------------
 Configuration
