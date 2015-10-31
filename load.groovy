@@ -24,7 +24,6 @@
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
 import groovy.json.JsonSlurper
-import java.text.ParseException
 import java.text.SimpleDateFormat
 
 import org.apache.cassandra.config.Config
@@ -126,7 +125,7 @@ def main(String[] args)
 	}
 
 	config = load_config(options.c)
-	DATE_FORMAT = SimpleDateFormat(config.date_format)
+	DATE_FORMAT = new SimpleDateFormat(config.date_format)
 	insert_statement = build_insert(config)
 
 	// magic!
