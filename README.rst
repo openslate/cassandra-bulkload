@@ -1,5 +1,5 @@
 ====================
-Cassandra CSV Loader
+Cassandra Bulkload
 ====================
 
 -----

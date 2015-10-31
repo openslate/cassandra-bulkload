@@ -32,7 +32,7 @@ import org.apache.cassandra.dht.Murmur3Partitioner
 import org.apache.cassandra.exceptions.InvalidRequestException
 import org.apache.cassandra.io.sstable.CQLSSTableWriter
 
-DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+DATE_FORMAT = null
 FILTERS = [:]
 
 def load_config(jsonFileName)
@@ -126,7 +126,7 @@ def main(String[] args)
 	}
 
 	config = load_config(options.c)
-	
+	DATE_FORMAT = SimpleDateFormat(config.date_format)
 	insert_statement = build_insert(config)
 
 	// magic!
