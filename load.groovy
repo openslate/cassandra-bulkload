@@ -20,7 +20,7 @@
  */
 
 @Grab('org.apache.cassandra:cassandra-all:2.1.0')
-@Grab('com.xlson.groovycsv:groovycsv:1.0')
+@Grab('com.xlson.groovycsv:groovycsv:1.1')
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
 import groovy.json.JsonSlurper
