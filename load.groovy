@@ -118,6 +118,7 @@ def main(String[] args)
 		c longOpt: 'config', 'Config File', required: true, args:1
 		d longOpt: 'data', 'Data File', required: true, args:1
 		o longOpt: 'outputdir', 'Output Directory', args:1
+		s longOpt: 'printschema', 'Just print the schema'
 	}
 
 	def options = cli.parse(args)
@@ -127,7 +128,13 @@ def main(String[] args)
 
 	config = load_config(options.c)
 	DATE_FORMAT = new SimpleDateFormat(config.date_format)
-	insert_statement = build_insert(config)
+	def insert_statement = build_insert(config)
+	def schema = build_schema(config)
+
+	if (options.s) {
+		println schema
+		return
+	}
 
 	// magic!
 	Config.setClientMode(true)
@@ -144,7 +151,7 @@ def main(String[] args)
 
 	def builder = CQLSSTableWriter.builder()
 	builder.inDirectory(outputDir)
-			.forTable(build_schema(config))
+			.forTable(schema)
 			.using(insert_statement)
 			.withPartitioner(new Murmur3Partitioner())
 	def writer = builder.build()
