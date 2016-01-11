@@ -25,6 +25,7 @@
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
 import groovy.json.JsonSlurper
+import com.opencsv.CSVReader
 import java.text.SimpleDateFormat
 
 import org.apache.cassandra.config.Config
@@ -35,9 +36,10 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter
 DATE_FORMAT = null
 FILTERS = [:]
 
-def load_config(jsonFileName)
+
+def load_config(filename)
 {
-	return new JsonSlurper().parseText(new File(jsonFileName).text)
+	return new JsonSlurper().parseText(new File(filename).text)
 }
 
 def build_insert(config)
@@ -93,12 +95,35 @@ def process_field(name, type, value, line, filter)
 		if (FILTERS[name]) {
 			f = FILTERS[name]
 		} else {
-			f = evaluate(filter)
+			if (config.filter_imports) {
+				with_imports = config.filter_imports.collect { "import " + it }.join(";") + "; " + filter
+				println(with_imports)
+				f = evaluate(with_imports)
+			} else {
+				f = evaluate(filter)
+			}
+			f.delegate = this
 			FILTERS[name] = f
 		}
 		value = f(value, line)
 	}
 	return value
+}
+
+def F(name, value, line)
+{
+	def f = FILTERS[name]
+	return f(value, line)
+}
+
+def parse_json(string)
+{
+	return new JsonSlurper().parseText(string)
+}
+
+def parse_csv(string)
+{
+	return new CSVReader(new StringReader(string));
 }
 
 def make_row(config, line)
