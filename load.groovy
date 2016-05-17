@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-@Grab('org.apache.cassandra:cassandra-all:2.1.0')
+@Grab('org.apache.cassandra:cassandra-all:3.0.3')
 @Grab('com.xlson.groovycsv:groovycsv:1.1')
 @Grab('com.opencsv:opencsv:3.4')
 import static com.xlson.groovycsv.CsvParser.parseCsv
@@ -118,7 +118,12 @@ def F(name, value, line)
 
 def parse_json(string)
 {
-	return new JsonSlurper().parseText(string)
+	try {
+		return new JsonSlurper().parseText(string)
+	} catch (e) {
+		println string;
+		throw e;
+	}
 }
 
 def parse_csv(string)
@@ -182,9 +187,9 @@ def main(String[] args)
 	def writer = builder.build()
 
 	String filename = options.d
-	
+
 	def headers = config.fields.collect { it.name }
-	
+
 	def data = parseCsv(
 				new BufferedReader(
 					new InputStreamReader(
@@ -193,13 +198,13 @@ def main(String[] args)
 					),
 				readFirstLine: true,
 				columnNames: headers)
-	
+
 	int c = 0
 	for(line in data) {
 		if (++c % 1000 == 0) println c
-		
-		def row = make_row(config, line)
+
 		try {
+			def row = make_row(config, line)
 			writer.addRow(row)
 		} catch (Exception e) {
 			println "Exception caught at data line: ${c}"
