@@ -138,7 +138,12 @@ def make_row(config, line)
 {
 	def row = [:]
 	config.fields.each {
-		row[it.name] = process_field(it.name, it.type, line[it.name], line, config.filters.get(it.name, null))
+		try {
+			row[it.name] = process_field(it.name, it.type, line[it.name], line, config.filters.get(it.name, null))
+		} catch (Exception e) {
+			println "ERROR process_field: name :: ${it.name} :: type ${it.type}"
+			throw e
+		}
 	}
 	return row
 }
@@ -204,17 +209,16 @@ def main(String[] args)
 				columnNames: headers)
 	
 	int c = 0
-	for(line in data) {
-		if (++c % 1000 == 0) println c
-		
-		def row = make_row(config, line)
-		try {
+	try {
+		for(line in data) {
+			if (++c % 1000 == 0 || ! data.hasNext()) println c
+			def row = make_row(config, line)
 			writer.addRow(row)
-		} catch (Exception e) {
-			println "Exception caught at data line: ${c}"
-			println row
-			throw e
 		}
+	} catch (Exception e) {
+		println e
+		println "Exception caught at data line: ${c}"
+		org.codehaus.groovy.runtime.StackTraceUtils.sanitize(e).printStackTrace()
 	}
 	writer.close()
 }
