@@ -171,7 +171,7 @@ def main(String[] args)
 	def schema = build_schema(config)
 
 	if (options.s) {
-		println schema
+		println schema + ';'
 		return
 	}
 
