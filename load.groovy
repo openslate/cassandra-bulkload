@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-@Grab('org.apache.cassandra:cassandra-all:2.1.0')
+@Grab('org.apache.cassandra:cassandra-all:3.0.6')
 @Grab('com.xlson.groovycsv:groovycsv:1.1')
 @Grab('com.opencsv:opencsv:3.4')
 import static com.xlson.groovycsv.CsvParser.parseCsv
