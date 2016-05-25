@@ -22,6 +22,11 @@
 @Grab('org.apache.cassandra:cassandra-all:3.0.6')
 @Grab('com.xlson.groovycsv:groovycsv:1.1')
 @Grab('com.opencsv:opencsv:3.4')
+
+import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
 import groovy.json.JsonSlurper
@@ -137,7 +142,8 @@ def make_row(config, line)
 
 def main(String[] args)
 {
-	cli = new CliBuilder(usage: 'load.groovy -d csvfile -c configfile [-o outputdirectory] [-h]')
+	set_log_level()
+	cli = new CliBuilder(usage: 'load.groovy -d csvfile -c configfile [-o outputdirectory] [-h] [-v]')
 	cli.with {
 		h longOpt: 'help', 'Show usage information'
 		c longOpt: 'config', 'Config File', required: true, args:1
@@ -208,6 +214,11 @@ def main(String[] args)
 		}
 	}
 	writer.close()
+}
+
+def set_log_level() {
+	Logger root = (Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+	root.setLevel(Level.WARN);
 }
 
 main(args)
