@@ -40,6 +40,7 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter
 
 DATE_FORMAT = null
 FILTERS = [:]
+DECIMAL_PATTERN = ~/\.0$/
 
 
 def load_config(filename)
@@ -73,18 +74,20 @@ def build_schema(config)
 
 def process_field(name, type, value, line, filter)
 {
-	if (!value) type = null
+	if (!value || value == "NaN" || value == "Infinity") type = null
 	switch (type) {
 		case null:
 			value = null
 			break
 		case "int":
-			value = Integer.parseInt(value)
+			value = value.replaceAll(DECIMAL_PATTERN, '')
+			value = value.toInteger()
 			break
 		case "bigint":
 			value = Long.parseLong(value)
 			break
 		case "decimal":
+			value = value.replaceAll(DECIMAL_PATTERN, '')
 			value = new BigDecimal(value)
 			break
 		case "timestamp":
