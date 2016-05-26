@@ -96,14 +96,20 @@ class OverrideUtils {
 }
 	
 class NulllessWriterProxy extends groovy.util.Proxy {
-	def addRow(String insert, Map<String, Object> values)
+	List<ColumnSpecification> boundNames
+	List<TypeCodec> typeCodecs
+
+	def setup(String insert)
 	{
-		List<ColumnSpecification> boundNames = OverrideUtils.prepareInsert(insert)
-		List<TypeCodec> typeCodecs;
-		int size = boundNames.size();
-		List<ByteBuffer> rawValues = new ArrayList<>(size);
+		boundNames = OverrideUtils.prepareInsert(insert)
 		typeCodecs = boundNames.stream().map({bn ->  UDHelper.codecFor(UDHelper.driverType(bn.type))})
                                              .collect(Collectors.toList());
+	}
+
+	def addRow(Map<String, Object> values)
+	{
+		int size = boundNames.size();
+		List<ByteBuffer> rawValues = new ArrayList<>(size);
 		for (int i = 0; i < size; i++)
 		{
 			ColumnSpecification spec = boundNames.get(i);
@@ -272,6 +278,7 @@ def main(String[] args)
 			.using(insert_statement)
 			.withPartitioner(new Murmur3Partitioner())
 	def writer = new NulllessWriterProxy().wrap(builder.build())
+	writer.setup(insert_statement)
 
 	String filename = options.d
 
@@ -291,7 +298,7 @@ def main(String[] args)
 		for(line in data) {
 			if (++c % 1000 == 0 || ! data.hasNext()) println c
 			def row = make_row(config, line)
-			writer.addRow(insert_statement, row)
+			writer.addRow(row)
 		}
 	} catch (Exception e) {
 		println e
