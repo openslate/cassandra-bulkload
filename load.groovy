@@ -19,9 +19,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-@Grab('org.apache.cassandra:cassandra-all:3.0.3')
+@Grab('org.apache.cassandra:cassandra-all:3.0.6')
 @Grab('com.xlson.groovycsv:groovycsv:1.1')
 @Grab('com.opencsv:opencsv:3.4')
+
+import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
 import groovy.json.JsonSlurper
@@ -35,6 +40,7 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter
 
 DATE_FORMAT = null
 FILTERS = [:]
+DECIMAL_PATTERN = ~/\.0$/
 
 
 def load_config(filename)
@@ -68,18 +74,20 @@ def build_schema(config)
 
 def process_field(name, type, value, line, filter)
 {
-	if (!value) type = null
+	if (!value || value == "NaN" || value == "Infinity") type = null
 	switch (type) {
 		case null:
 			value = null
 			break
 		case "int":
-			value = Integer.parseInt(value)
+			value = value.replaceAll(DECIMAL_PATTERN, '')
+			value = value.toInteger()
 			break
 		case "bigint":
 			value = Long.parseLong(value)
 			break
 		case "decimal":
+			value = value.replaceAll(DECIMAL_PATTERN, '')
 			value = new BigDecimal(value)
 			break
 		case "timestamp":
@@ -135,14 +143,20 @@ def make_row(config, line)
 {
 	def row = [:]
 	config.fields.each {
-		row[it.name] = process_field(it.name, it.type, line[it.name], line, config.filters.get(it.name, null))
+		try {
+			row[it.name] = process_field(it.name, it.type, line[it.name], line, config.filters.get(it.name, null))
+		} catch (Exception e) {
+			println "ERROR process_field: name :: ${it.name} :: type ${it.type}"
+			throw e
+		}
 	}
 	return row
 }
 
 def main(String[] args)
 {
-	cli = new CliBuilder(usage: 'load.groovy -d csvfile -c configfile [-o outputdirectory] [-h]')
+	set_log_level()
+	cli = new CliBuilder(usage: 'load.groovy -d csvfile -c configfile [-o outputdirectory] [-h] [-v]')
 	cli.with {
 		h longOpt: 'help', 'Show usage information'
 		c longOpt: 'config', 'Config File', required: true, args:1
@@ -162,7 +176,7 @@ def main(String[] args)
 	def schema = build_schema(config)
 
 	if (options.s) {
-		println schema
+		println schema + ';'
 		return
 	}
 
@@ -200,19 +214,23 @@ def main(String[] args)
 				columnNames: headers)
 
 	int c = 0
-	for(line in data) {
-		if (++c % 1000 == 0) println c
-
-		try {
+	try {
+		for(line in data) {
+			if (++c % 1000 == 0 || ! data.hasNext()) println c
 			def row = make_row(config, line)
 			writer.addRow(row)
-		} catch (Exception e) {
-			println "Exception caught at data line: ${c}"
-			println row
-			throw e
 		}
+	} catch (Exception e) {
+		println e
+		println "Exception caught at data line: ${c}"
+		org.codehaus.groovy.runtime.StackTraceUtils.sanitize(e).printStackTrace()
 	}
 	writer.close()
+}
+
+def set_log_level() {
+	Logger root = (Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+	root.setLevel(Level.WARN);
 }
 
 main(args)
