@@ -49,13 +49,6 @@ import org.apache.cassandra.cql3.Constants
 import org.apache.cassandra.utils.ByteBufferUtil
 import com.datastax.driver.core.ProtocolVersion
 import com.datastax.driver.core.TypeCodec
-import org.apache.cassandra.config.Schema
-import org.apache.cassandra.config.CFMetaData
-import org.apache.cassandra.utils.Pair
-import org.apache.cassandra.io.sstable.AbstractSSTableSimpleWriter
-import org.apache.cassandra.io.sstable.SSTableSimpleWriter
-import org.apache.cassandra.io.sstable.format.SSTableFormat
-import org.apache.cassandra.io.sstable.SSTableSimpleUnsortedWriter
 import org.apache.cassandra.cql3.statements.*
 import org.apache.cassandra.schema.*
 import org.apache.cassandra.exceptions.*
@@ -70,7 +63,7 @@ FILTERS = [:]
 DECIMAL_PATTERN = ~/\.0$/
 
 
-class Things {
+class OverrideUtils {
 	def static parseStatement(String query, String type)
 	{
 		try
@@ -105,7 +98,7 @@ class Things {
 class NulllessWriterProxy extends groovy.util.Proxy {
 	def addRow(String insert, Map<String, Object> values)
 	{
-		List<ColumnSpecification> boundNames = Things.prepareInsert(insert)
+		List<ColumnSpecification> boundNames = OverrideUtils.prepareInsert(insert)
 		List<TypeCodec> typeCodecs;
 		int size = boundNames.size();
 		List<ByteBuffer> rawValues = new ArrayList<>(size);
@@ -116,8 +109,6 @@ class NulllessWriterProxy extends groovy.util.Proxy {
 			ColumnSpecification spec = boundNames.get(i);
 			Object value = values.get(spec.name.toString());
 
-			//rawValues.add(value == null ? ByteBufferUtil.EMPTY_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
-			//rawValues.add(value == null ? Constants.UNSET_VALUE : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
 			rawValues.add(value == null ? ByteBufferUtil.UNSET_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
 		}
 		return rawAddRow(rawValues);
