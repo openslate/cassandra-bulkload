@@ -45,8 +45,10 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter
 // imports for subclass of CQLSSTableWriter
 import org.apache.cassandra.cql3.*
 import org.apache.cassandra.cql3.functions.*
+import org.apache.cassandra.cql3.Constants
 import org.apache.cassandra.utils.ByteBufferUtil
 import com.datastax.driver.core.ProtocolVersion
+import com.datastax.driver.core.TypeCodec
 import org.apache.cassandra.config.Schema
 import org.apache.cassandra.config.CFMetaData
 import org.apache.cassandra.utils.Pair
@@ -60,6 +62,7 @@ import org.apache.cassandra.exceptions.*
 import org.apache.cassandra.dht.*
 import org.apache.cassandra.service.*
 import java.nio.ByteBuffer
+import java.util.stream.Collectors
 
 
 DATE_FORMAT = null
@@ -99,229 +102,27 @@ class Things {
 	}
 }
 	
-class NulllessWriterProxy  extends groovy.util.Proxy {
+class NulllessWriterProxy extends groovy.util.Proxy {
 	def addRow(String insert, Map<String, Object> values)
 	{
 		List<ColumnSpecification> boundNames = Things.prepareInsert(insert)
 		List<TypeCodec> typeCodecs;
 		int size = boundNames.size();
 		List<ByteBuffer> rawValues = new ArrayList<>(size);
-		typeCodecs = boundNames.stream().map(bn ->  UDHelper.codecFor(UDHelper.driverType(bn.type)))
+		typeCodecs = boundNames.stream().map({bn ->  UDHelper.codecFor(UDHelper.driverType(bn.type))})
                                              .collect(Collectors.toList());
 		for (int i = 0; i < size; i++)
 		{
 			ColumnSpecification spec = boundNames.get(i);
 			Object value = values.get(spec.name.toString());
 
-			rawValues.add(value == null ? ByteBufferUtil.EMPTY_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
+			//rawValues.add(value == null ? ByteBufferUtil.EMPTY_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
+			//rawValues.add(value == null ? Constants.UNSET_VALUE : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
+			rawValues.add(value == null ? ByteBufferUtil.UNSET_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
 		}
 		return rawAddRow(rawValues);
 	}
 }
-
-//class NoNullSSTableWriter extends CQLSSTableWriter 
-//{
-//	//private final AbstractSSTableSimpleWriter writer;
-//
-//	public NoNullSSTableWriter addRow(Map<String, Object> values)
-//	throws InvalidRequestException, IOException
-//	{
-//		int size = boundNames.size();
-//		List<ByteBuffer> rawValues = new ArrayList<>(size);
-//		for (int i = 0; i < size; i++)
-//		{
-//			ColumnSpecification spec = boundNames.get(i);
-//			Object value = values.get(spec.name.toString());
-//
-//			rawValues.add(value == null ? ByteBufferUtil.EMPTY_BYTE_BUFFER : typeCodecs.get(i).serialize(value, ProtocolVersion.NEWEST_SUPPORTED));
-//		}
-//		return rawAddRow(rawValues);
-//	}
-//
-//	public static MyBuilder builder()
-//	{
-//		println "Instantiating MyBuilder()"
-//		return new MyBuilder();
-//	}
-//
-//	public static class MyBuilder extends CQLSSTableWriter.Builder
-//	{
-//
-//		private File directory;
-//
-//		protected SSTableFormat.Type formatType = null;
-//
-//		private CreateTableStatement.RawStatement schemaStatement;
-//		private final List<CreateTypeStatement> typeStatements;
-//		private UpdateStatement.ParsedInsert insertStatement;
-//		private IPartitioner partitioner;
-//
-//		private boolean sorted = false;
-//		private long bufferSizeInMB = 128;
-//
-//		public NoNullSSTableWriter build()
-//		{
-//			println "Calling Subclassed build()";
-//
-//			if (directory == null)
-//				throw new IllegalStateException("No ouptut directory specified, you should provide a directory with inDirectory()");
-//			if (schemaStatement == null)
-//				throw new IllegalStateException("Missing schema, you should provide the schema for the SSTable to create with forTable()");
-//			if (insertStatement == null)
-//				throw new IllegalStateException("No insert statement specified, you should provide an insert statement through using()");
-//
-//			synchronized (NoNullSSTableWriter.class)
-//			{
-//				String keyspace = schemaStatement.keyspace();
-//
-//				if (Schema.instance.getKSMetaData(keyspace) == null)
-//					Schema.instance.load(KeyspaceMetadata.create(keyspace, KeyspaceParams.simple(1)));
-//
-//				createTypes(keyspace);
-//				CFMetaData cfMetaData = createTable(keyspace);
-//				Pair<UpdateStatement, List<ColumnSpecification>> preparedInsert = prepareInsert();
-//
-//				/*
-//				AbstractSSTableSimpleWriter mywriter = sorted
-//													 ? new SSTableSimpleWriter(directory, cfMetaData, preparedInsert.left.updatedColumns())
-//													 : new SSTableSimpleUnsortedWriter(directory, cfMetaData, preparedInsert.left.updatedColumns(), bufferSizeInMB);
-//				*/
-//				Object mywriter;
-//				if (sorted)
-//					mywriter = new SSTableSimpleWriter(directory, cfMetaData, preparedInsert.left.updatedColumns())
-//				else
-//					mywriter = new SSTableSimpleUnsortedWriter(directory, cfMetaData, preparedInsert.left.updatedColumns(), bufferSizeInMB);
-//
-//				if (formatType != null)
-//					mywriter.setSSTableFormatType(formatType);
-//
-//				return new NoNullSSTableWriter((AbstractSSTableSimpleWriter)mywriter, preparedInsert.left, preparedInsert.right);
-//			}
-//		}
-//
-//		@SuppressWarnings("resource")
-//		protected MyBuilder() {
-//			this.typeStatements = new ArrayList<>();
-//		}
-//
-//		public MyBuilder inDirectory(String directory)
-//		{
-//			return inDirectory(new File(directory));
-//		}
-//
-//		public MyBuilder inDirectory(File directory)
-//		{
-//			if (!directory.exists())
-//				throw new IllegalArgumentException(directory + " doesn't exists");
-//			if (!directory.canWrite())
-//				throw new IllegalArgumentException(directory + " exists but is not writable");
-//
-//			this.directory = directory;
-//			return this;
-//		}
-//
-//		public MyBuilder withType(String typeDefinition) throws SyntaxException
-//		{
-//			typeStatements.add(parseStatement(typeDefinition, CreateTypeStatement.class, "CREATE TYPE"));
-//			return this;
-//		}
-//
-//		public MyBuilder forTable(String schema)
-//		{
-//			this.schemaStatement = parseStatement(schema, CreateTableStatement.RawStatement.class, "CREATE TABLE");
-//			return this;
-//		}
-//
-//		public MyBuilder withPartitioner(IPartitioner partitioner)
-//		{
-//			this.partitioner = partitioner;
-//			return this;
-//		}
-//
-//		public MyBuilder using(String insert)
-//		{
-//			this.insertStatement = parseStatement(insert, UpdateStatement.ParsedInsert.class, "INSERT");
-//			return this;
-//		}
-//
-//		public MyBuilder withBufferSizeInMB(int size)
-//		{
-//			this.bufferSizeInMB = size;
-//			return this;
-//		}
-//
-//		public MyBuilder sorted()
-//		{
-//			this.sorted = true;
-//			return this;
-//		}
-//
-//		private void createTypes(String keyspace)
-//		{
-//			KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace);
-//			Types.RawBuilder builder = Types.rawBuilder(keyspace);
-//			for (CreateTypeStatement st : typeStatements)
-//				st.addToRawBuilder(builder);
-//
-//			ksm = ksm.withSwapped(builder.build());
-//			Schema.instance.setKeyspaceMetadata(ksm);
-//		}
-//
-//		private CFMetaData createTable(String keyspace)
-//		{
-//			KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace);
-//
-//			CFMetaData cfMetaData = ksm.tables.getNullable(schemaStatement.columnFamily());
-//			if (cfMetaData == null)
-//			{
-//				CreateTableStatement statement = (CreateTableStatement) schemaStatement.prepare(ksm.types).statement;
-//				statement.validate(ClientState.forInternalCalls());
-//
-//				cfMetaData = statement.getCFMetaData();
-//
-//				Schema.instance.load(cfMetaData);
-//				Schema.instance.setKeyspaceMetadata(ksm.withSwapped(ksm.tables.with(cfMetaData)));
-//			}
-//
-//			if (partitioner != null)
-//				return cfMetaData.copy(partitioner);
-//			else
-//				return cfMetaData;
-//		}
-//
-//		private Pair<UpdateStatement, List<ColumnSpecification>> prepareInsert()
-//		{
-//			ParsedStatement.Prepared cqlStatement = insertStatement.prepare();
-//			UpdateStatement insert = (UpdateStatement) cqlStatement.statement;
-//			insert.validate(ClientState.forInternalCalls());
-//
-//			if (insert.hasConditions())
-//				throw new IllegalArgumentException("Conditional statements are not supported");
-//			if (insert.isCounter())
-//				throw new IllegalArgumentException("Counter update statements are not supported");
-//			if (cqlStatement.boundNames.isEmpty())
-//				throw new IllegalArgumentException("Provided insert statement has no bind variables");
-//
-//			return Pair.create(insert, cqlStatement.boundNames);
-//		}
-//	}
-//	private static <T extends ParsedStatement> T parseStatement(String query, Class<T> klass, String type)
-//	{
-//		try
-//		{
-//			ParsedStatement stmt = QueryProcessor.parseStatement(query);
-//
-//			if (!stmt.getClass().equals(klass))
-//				throw new IllegalArgumentException("Invalid query, must be a " + type + " statement but was: " + stmt.getClass());
-//
-//			return klass.cast(stmt);
-//		}
-//		catch (RequestValidationException e)
-//		{
-//			throw new IllegalArgumentException(e.getMessage(), e);
-//		}
-//	}
-//}
 
 def load_config(filename)
 {
