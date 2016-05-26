@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.apache.cassandra.io.sstable
+//package org.apache.cassandra.io.sstable
 
 @Grab('org.apache.cassandra:cassandra-all:3.0.6')
 @Grab('com.xlson.groovycsv:groovycsv:1.1')
@@ -44,6 +44,7 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter
 
 // imports for subclass of CQLSSTableWriter
 import org.apache.cassandra.cql3.*
+import org.apache.cassandra.cql3.functions.*
 import org.apache.cassandra.utils.ByteBufferUtil
 import com.datastax.driver.core.ProtocolVersion
 import org.apache.cassandra.config.Schema
@@ -65,42 +66,48 @@ DATE_FORMAT = null
 FILTERS = [:]
 DECIMAL_PATTERN = ~/\.0$/
 
-def parseStatement(String query, String type)
-{
-	try
-	{
-		ParsedStatement stmt = QueryProcessor.parseStatement(query);
 
-		return UpdateStatement.ParsedInsert.class.cast(stmt);
-	}
-	catch (RequestValidationException e)
+class Things {
+	def static parseStatement(String query, String type)
 	{
-		throw new IllegalArgumentException(e.getMessage(), e);
+		try
+		{
+			ParsedStatement stmt = QueryProcessor.parseStatement(query);
+	
+			return UpdateStatement.ParsedInsert.class.cast(stmt);
+		}
+		catch (RequestValidationException e)
+		{
+			throw new IllegalArgumentException(e.getMessage(), e);
+		}
+	}
+	
+	static List<ColumnSpecification> prepareInsert(String insert_string)
+	{
+		ParsedStatement.Prepared cqlStatement = parseStatement(insert_string, "INSERT").prepare()
+		UpdateStatement insert = (UpdateStatement) cqlStatement.statement;
+		insert.validate(ClientState.forInternalCalls());
+	
+		if (insert.hasConditions())
+			throw new IllegalArgumentException("Conditional statements are not supported");
+		if (insert.isCounter())
+			throw new IllegalArgumentException("Counter update statements are not supported");
+		if (cqlStatement.boundNames.isEmpty())
+			throw new IllegalArgumentException("Provided insert statement has no bind variables");
+	
+		return cqlStatement.boundNames;
 	}
 }
-
-List<ColumnSpecification> prepareInsert(String insert_string)
-{
-	ParsedStatement.Prepared cqlStatement = parseStatement(insert_string, UpdateStatement.ParsedInsert.class, "INSERT").prepare()
-	UpdateStatement insert = (UpdateStatement) cqlStatement.statement;
-	insert.validate(ClientState.forInternalCalls());
-
-	if (insert.hasConditions())
-		throw new IllegalArgumentException("Conditional statements are not supported");
-	if (insert.isCounter())
-		throw new IllegalArgumentException("Counter update statements are not supported");
-	if (cqlStatement.boundNames.isEmpty())
-		throw new IllegalArgumentException("Provided insert statement has no bind variables");
-
-	return cqlStatement.boundNames;
-}
-
+	
 class NulllessWriterProxy  extends groovy.util.Proxy {
 	def addRow(String insert, Map<String, Object> values)
 	{
-		List<ColumnSpecification> boundNames = parseInsert(insert)
+		List<ColumnSpecification> boundNames = Things.prepareInsert(insert)
+		List<TypeCodec> typeCodecs;
 		int size = boundNames.size();
 		List<ByteBuffer> rawValues = new ArrayList<>(size);
+		typeCodecs = boundNames.stream().map(bn ->  UDHelper.codecFor(UDHelper.driverType(bn.type)))
+                                             .collect(Collectors.toList());
 		for (int i = 0; i < size; i++)
 		{
 			ColumnSpecification spec = boundNames.get(i);
