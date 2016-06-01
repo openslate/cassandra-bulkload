@@ -153,30 +153,31 @@ def build_schema(config)
 def process_field(name, type, value, line, filter)
 {
 	if (!value || value == "NaN" || value == "Infinity") type = null
-	switch (type) {
-		case null:
-			value = null
-			break
-		case "int":
-			value = value.replaceAll(DECIMAL_PATTERN, '')
-			value = value.toInteger()
-			break
-		case "bigint":
-			value = Long.parseLong(value)
-			break
-		case "decimal":
-			value = value.replaceAll(DECIMAL_PATTERN, '')
-			value = new BigDecimal(value)
-			break
-		case "timestamp":
-			value = DATE_FORMAT.parse(value)
-			break
-		case "boolean":
-			value = Boolean.valueOf(value)
-			break
-			
-	}
-	if (filter != null) {
+
+	if (!filter) {
+		switch (type) {
+			case null:
+				value = null
+				break
+			case "int":
+				value = value.replaceAll(DECIMAL_PATTERN, '')
+				value = value.toInteger()
+				break
+			case "bigint":
+				value = Long.parseLong(value)
+				break
+			case "decimal":
+				value = value.replaceAll(DECIMAL_PATTERN, '')
+				value = new BigDecimal(value)
+				break
+			case "timestamp":
+				value = DATE_FORMAT.parse(value)
+				break
+			case "boolean":
+				value = Boolean.valueOf(value)
+				break
+		}
+	} else {
 		def f
 		if (FILTERS[name]) {
 			f = FILTERS[name]
