@@ -61,7 +61,7 @@ import java.util.stream.Collectors
 DATE_FORMAT = null
 FILTERS = [:]
 DECIMAL_PATTERN = ~/\.0$/
-
+SKIP_RECORD = ByteBufferUtil.UNSET_BYTE_BUFFER
 
 class OverrideUtils {
 	def static parseStatement(String query, String type)
@@ -221,11 +221,14 @@ def parse_csv(string)
 def make_row(config, line)
 {
 	def row = [:]
-	config.fields.each {
+	for (field in config.fields) {
 		try {
-			row[it.name] = process_field(it.name, it.type, line[it.name], line, config.filters.get(it.name, null))
+			row[field.name] = process_field(field.name, field.type, line[field.name], line, config.filters.get(field.name, null))
+			if (row[field.name] == SKIP_RECORD) {
+				return SKIP_RECORD
+			}
 		} catch (Exception e) {
-			println "ERROR process_field: name :: ${it.name} :: type ${it.type}"
+			println "ERROR process_field: name :: ${field.name} :: type ${field.type}"
 			throw e
 		}
 	}
@@ -299,7 +302,9 @@ def main(String[] args)
 		for(line in data) {
 			if (++c % 1000 == 0 || ! data.hasNext()) println c
 			def row = make_row(config, line)
-			writer.addRow(row)
+			if (row != SKIP_RECORD) {
+				writer.addRow(row)
+			}
 		}
 	} catch (Exception e) {
 		println e
