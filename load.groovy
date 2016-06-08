@@ -61,7 +61,7 @@ import java.util.stream.Collectors
 DATE_FORMAT = null
 FILTERS = [:]
 DECIMAL_PATTERN = ~/\.0$/
-SKIP_RECORD = ByteBufferUtil.UNSET_BYTE_BUFFER
+SKIP_RECORD = new Object()
 
 class OverrideUtils {
 	def static parseStatement(String query, String type)
