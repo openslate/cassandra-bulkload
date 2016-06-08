@@ -184,7 +184,6 @@ def process_field(name, type, value, line, filter)
 		} else {
 			if (config.filter_imports) {
 				with_imports = config.filter_imports.collect { "import " + it }.join(";") + "; " + filter
-				println(with_imports)
 				f = evaluate(with_imports)
 			} else {
 				f = evaluate(filter)
