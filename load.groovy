@@ -170,6 +170,9 @@ def process_field(name, type, value, line, filter)
 				value = value.replaceAll(DECIMAL_PATTERN, '')
 				value = new BigDecimal(value)
 				break
+			case "double":
+				value = value.toDouble()
+				break
 			case "timestamp":
 				value = DATE_FORMAT.parse(value)
 				break
